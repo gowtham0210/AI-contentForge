@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import pdfParse from 'pdf-parse';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 import mammoth from 'mammoth';
 import { logger } from '../utils/logger.js';
 
@@ -26,8 +26,18 @@ export class DocumentProcessor {
 
   async extractFromPDF(buffer) {
     try {
-      const data = await pdfParse(buffer);
-      return this.cleanText(data.text);
+      const uint8Array = new Uint8Array(buffer);
+      const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+      let fullText = '';
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+
+      return this.cleanText(fullText);
     } catch (error) {
       logger.error('PDF extraction error:', error);
       throw new Error('Failed to extract text from PDF');
