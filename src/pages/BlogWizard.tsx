@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Bot, FileText, Sparkles, Upload, Settings, Languages, Target } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import DocumentUpload from '../components/DocumentUpload';
 import ProgressBar from '../components/ProgressBar';
+import { apiService } from '../services/api';
 
 const BlogWizard = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     topic: '',
@@ -14,10 +16,12 @@ const BlogWizard = () => {
     language: 'english',
     includeImages: true,
     seoOptimize: true,
-    uploadedFiles: [] as File[]
+    uploadedFiles: [] as any[]
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState('');
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [error, setError] = useState('');
 
   const steps = [
     { number: 1, title: 'Topic & Settings', icon: Settings },
@@ -27,6 +31,7 @@ const BlogWizard = () => {
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setError(''); // Clear any previous errors
   };
 
   const handleNext = () => {
@@ -45,23 +50,92 @@ const BlogWizard = () => {
 
   const generateContent = async () => {
     setIsGenerating(true);
-    const steps = [
-      'Analyzing topic and keywords...',
-      'Researching current data...',
-      'Generating outline...',
-      'Creating content sections...',
-      'Optimizing for SEO...',
-      'Generating images...',
-      'Finalizing content...'
-    ];
-
-    for (let i = 0; i < steps.length; i++) {
-      setGenerationStep(steps[i]);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    setError('');
+    setGenerationProgress(0);
+    
+    try {
+      // Step 1: Generate outline
+      setGenerationStep('Analyzing topic and generating outline...');
+      setGenerationProgress(20);
+      
+      const outlineResponse = await apiService.generateOutline({
+        topic: formData.topic,
+        keywords: formData.keywords,
+        tone: formData.tone,
+        language: formData.language,
+        targetLength: formData.length
+      });
+      
+      // Step 2: Start content generation
+      setGenerationStep('Starting content generation...');
+      setGenerationProgress(40);
+      
+      const contentResponse = await apiService.generateContent({
+        topic: formData.topic,
+        outline: outlineResponse.data.outline,
+        keywords: formData.keywords,
+        tone: formData.tone,
+        language: formData.language,
+        targetLength: formData.length,
+        uploadedFiles: formData.uploadedFiles,
+        includeImages: formData.includeImages,
+        seoOptimize: formData.seoOptimize
+      });
+      
+      const contentId = contentResponse.data.contentId;
+      
+      // Step 3: Poll for completion
+      setGenerationStep('Generating content sections...');
+      setGenerationProgress(60);
+      
+      let isComplete = false;
+      let attempts = 0;
+      const maxAttempts = 30; // 5 minutes max
+      
+      while (!isComplete && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+        
+        try {
+          const statusResponse = await apiService.getGenerationStatus(contentId);
+          const status = statusResponse.data;
+          
+          if (status.status === 'completed') {
+            isComplete = true;
+            setGenerationStep('Content generation completed!');
+            setGenerationProgress(100);
+            
+            // Navigate to editor after a brief delay
+            setTimeout(() => {
+              navigate(`/editor/${contentId}`);
+            }, 2000);
+            
+          } else if (status.status === 'draft' && status.error) {
+            throw new Error(status.error);
+          } else {
+            // Still generating
+            setGenerationProgress(Math.min(60 + (attempts * 2), 95));
+            setGenerationStep('AI is creating your content...');
+          }
+        } catch (statusError) {
+          console.error('Status check error:', statusError);
+          // Continue polling unless it's a critical error
+        }
+        
+        attempts++;
+      }
+      
+      if (!isComplete) {
+        throw new Error('Content generation timed out. Please try again.');
+      }
+      
+    } catch (error: any) {
+      console.error('Content generation error:', error);
+      setError(error.message || 'Failed to generate content. Please try again.');
+      setGenerationStep('');
+      setGenerationProgress(0);
+    } finally {
+      setIsGenerating(false);
     }
-
-    setIsGenerating(false);
-    // Redirect to editor with generated content
   };
 
   const renderStepContent = () => {
@@ -71,7 +145,7 @@ const BlogWizard = () => {
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Blog Topic or Title
+                Blog Topic or Title *
               </label>
               <textarea
                 value={formData.topic}
@@ -79,7 +153,11 @@ const BlogWizard = () => {
                 placeholder="Enter your blog topic, title, or describe what you want to write about..."
                 className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 rows={4}
+                required
               />
+              {!formData.topic.trim() && (
+                <p className="text-sm text-red-600 mt-1">Topic is required to proceed</p>
+              )}
             </div>
 
             <div>
@@ -93,6 +171,7 @@ const BlogWizard = () => {
                 placeholder="e.g., react hooks, javascript, web development"
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+              <p className="text-xs text-gray-500 mt-1">Separate keywords with commas</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -248,15 +327,27 @@ const BlogWizard = () => {
               </div>
             </div>
 
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-red-500 rounded-full flex-shrink-0"></div>
+                  <p className="text-red-800 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
+
             {isGenerating && (
               <div className="space-y-4">
                 <ProgressBar 
-                  progress={Math.min((generationStep.length * 10), 100)} 
+                  progress={generationProgress} 
                   message={generationStep}
                 />
                 <div className="flex items-center justify-center space-x-2 text-blue-600">
                   <Sparkles className="w-5 h-5 animate-spin" />
                   <span className="text-sm font-medium">AI is working on your content...</span>
+                </div>
+                <div className="text-center text-xs text-gray-500">
+                  This may take 1-3 minutes depending on content length
                 </div>
               </div>
             )}
@@ -326,9 +417,9 @@ const BlogWizard = () => {
       <div className="flex items-center justify-between">
         <button
           onClick={handleBack}
-          disabled={currentStep === 1}
+          disabled={currentStep === 1 || isGenerating}
           className={`flex items-center px-6 py-3 rounded-lg font-medium ${
-            currentStep === 1
+            currentStep === 1 || isGenerating
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
@@ -349,7 +440,7 @@ const BlogWizard = () => {
           {currentStep === 3 ? (
             <>
               <Bot className="w-4 h-4 mr-2" />
-              Generate Content
+              {isGenerating ? 'Generating...' : 'Generate Content'}
             </>
           ) : (
             <>

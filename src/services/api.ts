@@ -22,7 +22,7 @@ class ApiService {
   private async handleResponse(response: Response) {
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Network error' }));
-      throw new Error(error.message || 'API request failed');
+      throw new Error(error.message || `HTTP ${response.status}: ${response.statusText}`);
     }
     return response.json();
   }
@@ -80,7 +80,13 @@ class ApiService {
     return this.handleResponse(response);
   }
 
-  async generateOutline(params: any) {
+  async generateOutline(params: {
+    topic: string;
+    keywords?: string;
+    tone?: string;
+    language?: string;
+    targetLength?: string;
+  }) {
     const response = await fetch(`${API_BASE_URL}/ai/generate-outline`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -89,7 +95,17 @@ class ApiService {
     return this.handleResponse(response);
   }
 
-  async generateContent(params: any) {
+  async generateContent(params: {
+    topic: string;
+    outline?: string;
+    keywords?: string;
+    tone?: string;
+    language?: string;
+    targetLength?: string;
+    uploadedFiles?: any[];
+    includeImages?: boolean;
+    seoOptimize?: boolean;
+  }) {
     const response = await fetch(`${API_BASE_URL}/ai/generate-content`, {
       method: 'POST',
       headers: this.getHeaders(),

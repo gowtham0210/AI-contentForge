@@ -100,6 +100,11 @@ export class AIService {
   async generateOutline(params, user) {
     const { topic, keywords, tone, language, targetLength } = params;
     
+    // Check if user has API key configured
+    if (!user.aiSettings?.apiKey) {
+      throw new Error('Please configure your AI API key in Settings before generating content.');
+    }
+    
     const client = this.initializeClient(user.aiSettings.apiKey, user.aiSettings.provider);
     
     const prompt = `Create a detailed outline for a ${targetLength}-word blog post about "${topic}".
@@ -120,7 +125,7 @@ export class AIService {
       switch (user.aiSettings.provider) {
         case 'openai':
           const completion = await client.chat.completions.create({
-            model: user.aiSettings.model,
+            model: user.aiSettings.model || 'gpt-3.5-turbo',
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 1000,
             temperature: user.aiSettings.creativity === 'creative' ? 0.8 : 
@@ -131,7 +136,7 @@ export class AIService {
           
         case 'anthropic':
           const message = await client.messages.create({
-            model: user.aiSettings.model,
+            model: user.aiSettings.model || 'claude-3-haiku-20240307',
             max_tokens: 1000,
             messages: [{ role: 'user', content: prompt }]
           });
@@ -139,7 +144,7 @@ export class AIService {
           break;
           
         case 'google':
-          const model = client.getGenerativeModel({ model: user.aiSettings.model });
+          const model = client.getGenerativeModel({ model: user.aiSettings.model || 'gemini-pro' });
           const result = await model.generateContent(prompt);
           outline = result.response.text();
           break;
@@ -157,7 +162,7 @@ export class AIService {
       };
     } catch (error) {
       logger.error('Outline generation error:', error);
-      throw new Error('Failed to generate outline');
+      throw new Error(`Failed to generate outline: ${error.message}`);
     }
   }
 
@@ -174,6 +179,11 @@ export class AIService {
       includeImages,
       seoOptimize
     } = params;
+
+    // Check if user has API key configured
+    if (!user.aiSettings?.apiKey) {
+      throw new Error('Please configure your AI API key in Settings before generating content.');
+    }
 
     // Create content record
     const content = new Content({
@@ -198,7 +208,9 @@ export class AIService {
     await content.save();
 
     // Start background generation (in production, use a job queue)
-    this.generateContentBackground(content._id, params, user);
+    this.generateContentBackground(content._id, params, user).catch(error => {
+      logger.error('Background content generation failed:', error);
+    });
 
     return content._id;
   }
@@ -231,10 +243,11 @@ export class AIService {
       - Use markdown formatting
       - Include tables and lists where appropriate
       - Make it engaging and informative
+      - Write a complete, well-structured article
       
       ${fileContext ? `Reference material:\n${fileContext}\n` : ''}
       
-      Write the complete blog post in markdown format.`;
+      Write the complete blog post in markdown format with proper headings, subheadings, and formatting.`;
 
       const startTime = Date.now();
       let generatedContent;
@@ -242,7 +255,7 @@ export class AIService {
       switch (user.aiSettings.provider) {
         case 'openai':
           const completion = await client.chat.completions.create({
-            model: user.aiSettings.model,
+            model: user.aiSettings.model || 'gpt-3.5-turbo',
             messages: [{ role: 'user', content: prompt }],
             max_tokens: Math.min(parseInt(params.targetLength) * 2, 4000),
             temperature: user.aiSettings.creativity === 'creative' ? 0.8 : 
@@ -253,7 +266,7 @@ export class AIService {
           
         case 'anthropic':
           const message = await client.messages.create({
-            model: user.aiSettings.model,
+            model: user.aiSettings.model || 'claude-3-haiku-20240307',
             max_tokens: Math.min(parseInt(params.targetLength) * 2, 4000),
             messages: [{ role: 'user', content: prompt }]
           });
@@ -261,7 +274,7 @@ export class AIService {
           break;
           
         case 'google':
-          const model = client.getGenerativeModel({ model: user.aiSettings.model });
+          const model = client.getGenerativeModel({ model: user.aiSettings.model || 'gemini-pro' });
           const result = await model.generateContent(prompt);
           generatedContent = result.response.text();
           break;
