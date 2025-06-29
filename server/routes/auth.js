@@ -147,10 +147,11 @@ router.post('/login',
   }
 );
 
-// Get current user
+// Get current user - Include AI settings with API key
 router.get('/me', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    // Include the API key in the response by explicitly selecting it
+    const user = await User.findById(req.user.id).select('+aiSettings.apiKey +wordpressSettings.applicationPassword');
     
     res.json({
       success: true,

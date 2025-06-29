@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, User, Key, Globe, Bell, Shield, Palette, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, User, Key, Globe, Bell, Shield, Palette, CheckCircle, AlertCircle, Eye, EyeOff, Save } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -40,6 +40,7 @@ const Settings = () => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -54,8 +55,20 @@ const Settings = () => {
             company: userData.company || ''
           },
           preferences: userData.preferences || settings.preferences,
-          ai: userData.aiSettings || settings.ai
+          ai: {
+            apiKey: userData.aiSettings?.apiKey || '',
+            provider: userData.aiSettings?.provider || 'openai',
+            model: userData.aiSettings?.model || 'gpt-4',
+            creativity: userData.aiSettings?.creativity || 'balanced',
+            includeImages: userData.aiSettings?.includeImages !== undefined ? userData.aiSettings.includeImages : true,
+            seoOptimization: userData.aiSettings?.seoOptimization !== undefined ? userData.aiSettings.seoOptimization : true
+          }
         });
+
+        // If API key exists, validate it
+        if (userData.aiSettings?.apiKey) {
+          validateApiKey(userData.aiSettings.apiKey, userData.aiSettings.provider);
+        }
       } catch (error) {
         console.error('Failed to fetch user data:', error);
       } finally {
@@ -71,11 +84,11 @@ const Settings = () => {
     if (apiKey.startsWith('sk-')) return 'openai';
     if (apiKey.startsWith('claude-')) return 'anthropic';
     if (apiKey.startsWith('goog-')) return 'google';
-    return 'unknown';
+    return settings.ai.provider; // Use current provider if can't detect
   };
 
   // API key validation
-  const validateApiKey = async (apiKey: string) => {
+  const validateApiKey = async (apiKey: string, providerOverride?: string) => {
     if (!apiKey.trim()) {
       setApiKeyValidation({
         isValidating: false,
@@ -90,7 +103,15 @@ const Settings = () => {
     setApiKeyValidation(prev => ({ ...prev, isValidating: true, error: '' }));
 
     try {
-      const provider = detectProvider(apiKey);
+      const provider = providerOverride || detectProvider(apiKey);
+      
+      // Update provider if detected differently
+      if (provider !== settings.ai.provider) {
+        setSettings(prev => ({
+          ...prev,
+          ai: { ...prev.ai, provider }
+        }));
+      }
       
       // Validate API key
       const validationResponse = await apiService.validateApiKey(apiKey, provider);
@@ -133,7 +154,9 @@ const Settings = () => {
   // Debounced API key validation
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      validateApiKey(settings.ai.apiKey);
+      if (settings.ai.apiKey !== '') {
+        validateApiKey(settings.ai.apiKey);
+      }
     }, 1000);
 
     return () => clearTimeout(timeoutId);
@@ -158,10 +181,17 @@ const Settings = () => {
       ...prev,
       ai: { ...prev.ai, [field]: value }
     }));
+
+    // If provider changes, re-validate API key
+    if (field === 'provider' && settings.ai.apiKey) {
+      setTimeout(() => validateApiKey(settings.ai.apiKey, value), 100);
+    }
   };
 
   const saveSettings = async () => {
     setIsSaving(true);
+    setSaveMessage('');
+    
     try {
       // Save profile
       await apiService.updateProfile(settings.profile);
@@ -172,12 +202,14 @@ const Settings = () => {
       // Save AI settings
       await apiService.updateAISettings(settings.ai);
       
-      // Show success message (you can add a toast notification here)
-      console.log('Settings saved successfully');
+      setSaveMessage('Settings saved successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveMessage(''), 3000);
       
     } catch (error: any) {
       console.error('Failed to save settings:', error);
-      // Show error message (you can add a toast notification here)
+      setSaveMessage(`Error: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -218,6 +250,24 @@ const Settings = () => {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
         <p className="text-gray-600">Manage your account preferences and AI content generation settings</p>
       </div>
+
+      {/* Save Message */}
+      {saveMessage && (
+        <div className={`mb-6 p-4 rounded-lg ${
+          saveMessage.includes('Error') 
+            ? 'bg-red-50 border border-red-200 text-red-800' 
+            : 'bg-green-50 border border-green-200 text-green-800'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {saveMessage.includes('Error') ? (
+              <AlertCircle className="w-4 h-4" />
+            ) : (
+              <CheckCircle className="w-4 h-4" />
+            )}
+            <span>{saveMessage}</span>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-8">
         {/* Profile Settings */}
@@ -368,14 +418,29 @@ const Settings = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  AI Provider API Key
+                  AI Provider
+                </label>
+                <select
+                  value={settings.ai.provider}
+                  onChange={(e) => handleAIChange('provider', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="google">Google (Gemini)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  API Key
                 </label>
                 <div className="relative">
                   <input
                     type={showApiKey ? 'text' : 'password'}
                     value={settings.ai.apiKey}
                     onChange={(e) => handleAIChange('apiKey', e.target.value)}
-                    placeholder="Enter your OpenAI, Anthropic, or Google API key..."
+                    placeholder={`Enter your ${getProviderName(settings.ai.provider)} API key...`}
                     className={`w-full p-3 pr-20 border rounded-lg focus:ring-2 focus:border-transparent ${
                       apiKeyValidation.isValid 
                         ? 'border-green-300 focus:ring-green-500' 
@@ -419,7 +484,8 @@ const Settings = () => {
                 )}
                 
                 <p className="text-xs text-gray-500 mt-2">
-                  Supports OpenAI (sk-...), Anthropic (claude-...), and Google (goog-...) API keys
+                  Get your API key from: {settings.ai.provider === 'openai' ? 'platform.openai.com' : 
+                  settings.ai.provider === 'anthropic' ? 'console.anthropic.com' : 'makersuite.google.com'}
                 </p>
               </div>
             </div>
@@ -505,15 +571,18 @@ const Settings = () => {
           <button 
             onClick={saveSettings}
             disabled={isSaving}
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             {isSaving ? (
-              <div className="flex items-center">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                Saving...
-              </div>
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Saving...</span>
+              </>
             ) : (
-              'Save Settings'
+              <>
+                <Save className="w-4 h-4" />
+                <span>Save Settings</span>
+              </>
             )}
           </button>
         </div>

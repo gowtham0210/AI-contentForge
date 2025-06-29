@@ -103,7 +103,7 @@ router.put('/preferences',
   }
 );
 
-// Update AI settings
+// Update AI settings - Fixed to properly save API key
 router.put('/ai-settings',
   auth,
   [
@@ -129,11 +129,24 @@ router.put('/ai-settings',
         updates[`aiSettings.${key}`] = req.body[key];
       });
 
+      // Use findByIdAndUpdate with proper options to ensure the update works
       const user = await User.findByIdAndUpdate(
         req.user.id,
         { $set: updates },
-        { new: true, runValidators: true }
+        { 
+          new: true, 
+          runValidators: true,
+          // Include the API key in the response
+          select: '+aiSettings.apiKey'
+        }
       );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
 
       res.json({
         success: true,
