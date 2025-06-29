@@ -8,31 +8,16 @@ export class DocumentProcessor {
       const buffer = await fs.readFile(filePath);
       
       switch (mimeType) {
-        case 'application/pdf':
-          return await this.extractFromPDF(buffer);
         case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
           return await this.extractFromDOCX(buffer);
         case 'text/plain':
           return await this.extractFromTXT(buffer);
         default:
-          throw new Error(`Unsupported file type: ${mimeType}`);
+          throw new Error(`Unsupported file type: ${mimeType}. Only DOCX and TXT files are supported.`);
       }
     } catch (error) {
       logger.error('Document processing error:', error);
       throw new Error('Failed to extract text from document');
-    }
-  }
-
-  async extractFromPDF(buffer) {
-    try {
-      // Dynamic import for pdf-parse
-      const { default: pdfParse } = await import('pdf-parse');
-      const data = await pdfParse(buffer);
-      return this.cleanText(data.text);
-    } catch (error) {
-      logger.error('PDF extraction error:', error);
-      // Fallback: return a message indicating PDF processing is unavailable
-      return 'PDF text extraction is currently unavailable. Please convert your PDF to a text file or DOCX format.';
     }
   }
 

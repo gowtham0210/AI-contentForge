@@ -11,7 +11,7 @@ interface DocumentUploadProps {
 const DocumentUpload: React.FC<DocumentUploadProps> = ({
   onFilesUploaded,
   maxFiles = 5,
-  acceptedTypes = ['.pdf', '.docx', '.txt']
+  acceptedTypes = ['.docx', '.txt']
 }) => {
   const [files, setFiles] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
@@ -56,7 +56,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       });
 
       if (validFiles.length === 0) {
-        setError('No valid files selected. Please upload PDF, DOCX, or TXT files.');
+        setError('No valid files selected. Please upload DOCX or TXT files.');
         setUploading(false);
         return;
       }
@@ -140,6 +140,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
             </p>
             <p className="text-sm text-gray-500">
               Supported formats: {acceptedTypes.join(', ')} • Max {maxFiles} files
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              Note: PDF support has been removed. Please convert PDFs to DOCX or TXT format.
             </p>
           </div>
         </div>

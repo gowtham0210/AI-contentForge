@@ -295,13 +295,13 @@ const BlogWizard = () => {
                 Upload Reference Documents (Optional)
               </h3>
               <p className="text-gray-600 mb-6">
-                Upload PDFs, DOCX, or TXT files to use as reference material for your blog content.
+                Upload DOCX or TXT files to use as reference material for your blog content.
               </p>
             </div>
             <DocumentUpload 
               onFilesUploaded={(files) => handleInputChange('uploadedFiles', files)}
               maxFiles={5}
-              acceptedTypes={['.pdf', '.docx', '.txt']}
+              acceptedTypes={['.docx', '.txt']}
             />
           </div>
         );
