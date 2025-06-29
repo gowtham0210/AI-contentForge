@@ -111,7 +111,7 @@ router.post('/generate-outline',
       logger.error('Outline generation error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to generate outline',
+        message: error.message || 'Failed to generate outline',
         error: error.message
       });
     }
@@ -158,7 +158,7 @@ router.post('/generate-content',
       logger.error('Content generation error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to start content generation',
+        message: error.message || 'Failed to start content generation',
         error: error.message
       });
     }
@@ -183,7 +183,7 @@ router.get('/generation-status/:contentId',
       logger.error('Generation status error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to get generation status',
+        message: error.message || 'Failed to get generation status',
         error: error.message
       });
     }

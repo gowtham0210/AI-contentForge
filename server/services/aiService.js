@@ -16,15 +16,20 @@ export class AIService {
 
   // Initialize AI client based on user's API key
   initializeClient(apiKey, provider) {
-    switch (provider) {
-      case 'openai':
-        return new OpenAI({ apiKey });
-      case 'anthropic':
-        return new Anthropic({ apiKey });
-      case 'google':
-        return new GoogleGenerativeAI(apiKey);
-      default:
-        throw new Error(`Unsupported provider: ${provider}`);
+    try {
+      switch (provider) {
+        case 'openai':
+          return new OpenAI({ apiKey });
+        case 'anthropic':
+          return new Anthropic({ apiKey });
+        case 'google':
+          return new GoogleGenerativeAI(apiKey);
+        default:
+          throw new Error(`Unsupported provider: ${provider}`);
+      }
+    } catch (error) {
+      logger.error(`Failed to initialize ${provider} client:`, error);
+      throw new Error(`Failed to initialize AI client: ${error.message}`);
     }
   }
 
@@ -104,22 +109,27 @@ export class AIService {
     if (!user.aiSettings?.apiKey) {
       throw new Error('Please configure your AI API key in Settings before generating content.');
     }
-    
-    const client = this.initializeClient(user.aiSettings.apiKey, user.aiSettings.provider);
-    
-    const prompt = `Create a detailed outline for a ${targetLength}-word blog post about "${topic}".
-    
-    Requirements:
-    - Tone: ${tone}
-    - Language: ${language}
-    - Target keywords: ${keywords || 'N/A'}
-    - Include main sections and subsections
-    - Suggest relevant examples and case studies
-    - Include SEO-friendly headings
-    
-    Format the outline as a structured list with clear hierarchy.`;
 
+    // Validate provider
+    if (!user.aiSettings?.provider) {
+      throw new Error('Please select an AI provider in Settings.');
+    }
+    
     try {
+      const client = this.initializeClient(user.aiSettings.apiKey, user.aiSettings.provider);
+      
+      const prompt = `Create a detailed outline for a ${targetLength}-word blog post about "${topic}".
+      
+      Requirements:
+      - Tone: ${tone || 'professional'}
+      - Language: ${language || 'english'}
+      - Target keywords: ${keywords || 'N/A'}
+      - Include main sections and subsections
+      - Suggest relevant examples and case studies
+      - Include SEO-friendly headings
+      
+      Format the outline as a structured list with clear hierarchy.`;
+
       let outline;
       
       switch (user.aiSettings.provider) {
@@ -148,15 +158,18 @@ export class AIService {
           const result = await model.generateContent(prompt);
           outline = result.response.text();
           break;
+          
+        default:
+          throw new Error(`Unsupported AI provider: ${user.aiSettings.provider}`);
       }
 
       return {
         outline,
         topic,
         metadata: {
-          tone,
-          language,
-          targetLength,
+          tone: tone || 'professional',
+          language: language || 'english',
+          targetLength: targetLength || '3000',
           keywords: keywords?.split(',').map(k => k.trim()) || []
         }
       };
@@ -185,21 +198,26 @@ export class AIService {
       throw new Error('Please configure your AI API key in Settings before generating content.');
     }
 
+    // Validate provider
+    if (!user.aiSettings?.provider) {
+      throw new Error('Please select an AI provider in Settings.');
+    }
+
     // Create content record
     const content = new Content({
       user: user.id,
       title: topic,
       status: 'generating',
       metadata: {
-        language,
-        tone,
-        targetLength
+        language: language || 'english',
+        tone: tone || 'professional',
+        targetLength: targetLength || '3000'
       },
       seo: {
         keywords: keywords?.split(',').map(k => k.trim()) || []
       },
       generation: {
-        model: user.aiSettings.model,
+        model: user.aiSettings.model || 'gpt-3.5-turbo',
         provider: user.aiSettings.provider
       },
       uploadedFiles: uploadedFiles || []
@@ -219,7 +237,10 @@ export class AIService {
   async generateContentBackground(contentId, params, user) {
     try {
       const content = await Content.findById(contentId);
-      if (!content) return;
+      if (!content) {
+        logger.error(`Content not found: ${contentId}`);
+        return;
+      }
 
       const client = this.initializeClient(user.aiSettings.apiKey, user.aiSettings.provider);
       
@@ -231,13 +252,13 @@ export class AIService {
           .join('\n\n');
       }
 
-      const prompt = `Write a comprehensive ${params.targetLength}-word blog post about "${params.topic}".
+      const prompt = `Write a comprehensive ${params.targetLength || '3000'}-word blog post about "${params.topic}".
 
       ${params.outline ? `Follow this outline:\n${params.outline}\n` : ''}
       
       Requirements:
-      - Tone: ${params.tone}
-      - Language: ${params.language}
+      - Tone: ${params.tone || 'professional'}
+      - Language: ${params.language || 'english'}
       - Target keywords: ${params.keywords || 'N/A'}
       - Include code examples where relevant
       - Use markdown formatting
@@ -257,7 +278,7 @@ export class AIService {
           const completion = await client.chat.completions.create({
             model: user.aiSettings.model || 'gpt-3.5-turbo',
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: Math.min(parseInt(params.targetLength) * 2, 4000),
+            max_tokens: Math.min(parseInt(params.targetLength || '3000') * 2, 4000),
             temperature: user.aiSettings.creativity === 'creative' ? 0.8 : 
                         user.aiSettings.creativity === 'conservative' ? 0.3 : 0.5
           });
@@ -267,7 +288,7 @@ export class AIService {
         case 'anthropic':
           const message = await client.messages.create({
             model: user.aiSettings.model || 'claude-3-haiku-20240307',
-            max_tokens: Math.min(parseInt(params.targetLength) * 2, 4000),
+            max_tokens: Math.min(parseInt(params.targetLength || '3000') * 2, 4000),
             messages: [{ role: 'user', content: prompt }]
           });
           generatedContent = message.content[0].text;
@@ -278,6 +299,9 @@ export class AIService {
           const result = await model.generateContent(prompt);
           generatedContent = result.response.text();
           break;
+          
+        default:
+          throw new Error(`Unsupported AI provider: ${user.aiSettings.provider}`);
       }
 
       const generationTime = Date.now() - startTime;
@@ -307,6 +331,8 @@ export class AIService {
       if (params.includeImages) {
         await this.generateImages(contentId, [], user);
       }
+
+      logger.info(`Content generation completed for ${contentId}`);
 
     } catch (error) {
       logger.error('Background content generation error:', error);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Bot, FileText, Sparkles, Upload, Settings, Languages, Target } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bot, FileText, Sparkles, Upload, Settings, Languages, Target, AlertTriangle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import DocumentUpload from '../components/DocumentUpload';
 import ProgressBar from '../components/ProgressBar';
@@ -262,6 +262,26 @@ const BlogWizard = () => {
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
+              </div>
+            </div>
+
+            {/* API Key Warning */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="font-medium text-amber-800">AI API Key Required</h4>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Make sure you have configured your AI API key in Settings before generating content. 
+                    You'll need an OpenAI, Anthropic, or Google API key.
+                  </p>
+                  <Link 
+                    to="/settings" 
+                    className="inline-flex items-center text-sm text-amber-800 hover:text-amber-900 font-medium mt-2"
+                  >
+                    Configure API Key →
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
