@@ -2,6 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { auth } from '../middleware/auth.js';
 import { CompetitiveResearchService } from '../services/competitiveResearchService.js';
+import User from '../models/User.js';
 import { logger } from '../utils/logger.js';
 
 const router = express.Router();
@@ -19,6 +20,15 @@ router.post('/research',
         return res.status(400).json({
           success: false,
           errors: errors.array()
+        });
+      }
+
+      // Fetch user with AI settings including API key
+      const user = await User.findById(req.user.id).select('+aiSettings.apiKey');
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
         });
       }
 
@@ -65,8 +75,17 @@ router.post('/generate-outline',
         });
       }
 
+      // Fetch user with AI settings including API key
+      const user = await User.findById(req.user.id).select('+aiSettings.apiKey');
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
       const researchService = new CompetitiveResearchService();
-      const outline = await researchService.generateCompetitiveOutline(req.body, req.user);
+      const outline = await researchService.generateCompetitiveOutline(req.body, user);
       
       res.json({
         success: true,
@@ -103,8 +122,17 @@ router.post('/generate-section',
         });
       }
 
+      // Fetch user with AI settings including API key
+      const user = await User.findById(req.user.id).select('+aiSettings.apiKey');
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
       const researchService = new CompetitiveResearchService();
-      const content = await researchService.generateSectionContent(req.body, req.user);
+      const content = await researchService.generateSectionContent(req.body, user);
       
       res.json({
         success: true,
