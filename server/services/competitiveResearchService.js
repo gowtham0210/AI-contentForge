@@ -356,14 +356,25 @@ export class CompetitiveResearchService {
     return competitors;
   }
 
+  // Validate user has AI configuration before proceeding
+  validateUserAIConfig(user) {
+    if (!user.aiSettings?.apiKey) {
+      throw new Error('Please configure your AI API key in Settings before generating content.');
+    }
+
+    if (!user.aiSettings?.provider) {
+      throw new Error('Please select an AI provider in Settings.');
+    }
+
+    return true;
+  }
+
   // Generate competitive outline using AI
   async generateCompetitiveOutline(params, user) {
     const { title, competitors, seoKeywords, tone, targetAudience } = params;
 
-    // Check if user has API key configured
-    if (!user.aiSettings?.apiKey) {
-      throw new Error('Please configure your AI API key in Settings before generating content.');
-    }
+    // Validate user AI configuration
+    this.validateUserAIConfig(user);
 
     try {
       const client = this.aiService.initializeClient(user.aiSettings.apiKey, user.aiSettings.provider);
@@ -477,7 +488,17 @@ Format as JSON:
 
     } catch (error) {
       logger.error('Competitive outline generation error:', error);
-      throw new Error(`Failed to generate competitive outline: ${error.message}`);
+      
+      // Provide more specific error messages
+      if (error.message.includes('API key')) {
+        throw new Error('Please configure your AI API key in Settings before generating content.');
+      } else if (error.message.includes('provider')) {
+        throw new Error('Please select a valid AI provider in Settings.');
+      } else if (error.message.includes('Invalid API key') || error.message.includes('Unauthorized')) {
+        throw new Error('Your AI API key appears to be invalid. Please check your Settings and update your API key.');
+      } else {
+        throw new Error(`Failed to generate competitive outline: ${error.message}`);
+      }
     }
   }
 
@@ -485,10 +506,8 @@ Format as JSON:
   async generateSectionContent(params, user) {
     const { title, description, wordCount, tone, seoKeywords, context } = params;
 
-    // Check if user has API key configured
-    if (!user.aiSettings?.apiKey) {
-      throw new Error('Please configure your AI API key in Settings before generating content.');
-    }
+    // Validate user AI configuration
+    this.validateUserAIConfig(user);
 
     try {
       const client = this.aiService.initializeClient(user.aiSettings.apiKey, user.aiSettings.provider);
@@ -588,7 +607,17 @@ Write the complete section that will help this blog outrank all competitors:`;
 
     } catch (error) {
       logger.error('Section content generation error:', error);
-      throw new Error(`Failed to generate section content: ${error.message}`);
+      
+      // Provide more specific error messages
+      if (error.message.includes('API key')) {
+        throw new Error('Please configure your AI API key in Settings before generating content.');
+      } else if (error.message.includes('provider')) {
+        throw new Error('Please select a valid AI provider in Settings.');
+      } else if (error.message.includes('Invalid API key') || error.message.includes('Unauthorized')) {
+        throw new Error('Your AI API key appears to be invalid. Please check your Settings and update your API key.');
+      } else {
+        throw new Error(`Failed to generate section content: ${error.message}`);
+      }
     }
   }
 
