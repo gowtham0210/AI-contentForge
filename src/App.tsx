@@ -5,6 +5,7 @@ import AuthGuard from './components/AuthGuard';
 import Navigation from './components/Navigation';
 import Dashboard from './pages/Dashboard';
 import BlogWizard from './pages/BlogWizard';
+import CompetitiveBlogGenerator from './pages/CompetitiveBlogGenerator';
 import ContentEditor from './pages/ContentEditor';
 import WordPressIntegration from './pages/WordPressIntegration';
 import Settings from './pages/Settings';
@@ -20,6 +21,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/wizard" element={<BlogWizard />} />
+                <Route path="/competitive" element={<CompetitiveBlogGenerator />} />
                 <Route path="/editor/:id" element={<ContentEditor />} />
                 <Route path="/wordpress" element={<WordPressIntegration />} />
                 <Route path="/settings" element={<Settings />} />

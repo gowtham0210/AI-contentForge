@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.js';
 import contentRoutes from './routes/content.js';
 import uploadRoutes from './routes/upload.js';
 import aiRoutes from './routes/ai.js';
+import competitiveRoutes from './routes/competitive.js';
 import wordpressRoutes from './routes/wordpress.js';
 import userRoutes from './routes/user.js';
 
@@ -64,6 +65,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/competitive', competitiveRoutes);
 app.use('/api/wordpress', wordpressRoutes);
 app.use('/api/user', userRoutes);
 

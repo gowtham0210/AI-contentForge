@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bot, FileText, Settings, Globe, BarChart3, LogOut } from 'lucide-react';
+import { Bot, FileText, Settings, Globe, BarChart3, LogOut, Search, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Navigation = () => {
@@ -9,7 +9,8 @@ const Navigation = () => {
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: BarChart3 },
-    { path: '/wizard', label: 'New Blog', icon: Bot },
+    { path: '/wizard', label: 'Quick Blog', icon: Bot },
+    { path: '/competitive', label: 'Competitive', icon: Search },
     { path: '/wordpress', label: 'WordPress', icon: Globe },
     { path: '/settings', label: 'Settings', icon: Settings },
   ];

@@ -121,6 +121,51 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  // Competitive Blog Generation methods
+  async performWebResearch(topic: string) {
+    const response = await fetch(`${API_BASE_URL}/competitive/research`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ topic }),
+    });
+    return this.handleResponse(response);
+  }
+
+  async generateCompetitiveOutline(params: {
+    title: string;
+    competitors: any[];
+    seoKeywords?: string;
+    tone?: string;
+    targetAudience?: string;
+  }) {
+    const response = await fetch(`${API_BASE_URL}/competitive/generate-outline`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(params),
+    });
+    return this.handleResponse(response);
+  }
+
+  async generateSectionContent(params: {
+    title: string;
+    description: string;
+    wordCount: number;
+    tone: string;
+    seoKeywords?: string;
+    context: {
+      blogTitle: string;
+      previousSections: any[];
+      competitors: any[];
+    };
+  }) {
+    const response = await fetch(`${API_BASE_URL}/competitive/generate-section`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(params),
+    });
+    return this.handleResponse(response);
+  }
+
   // Content methods
   async getContent(page = 1, limit = 10, status?: string, search?: string) {
     const params = new URLSearchParams({
